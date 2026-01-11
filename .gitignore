@@ -1,61 +1,62 @@
 # =========================
-# Node
-# =========================
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
-# =========================
-# Environment / Secrets
-# =========================
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# =========================
-# Logs
-# =========================
-logs/
-*.log
-*.log.*
-debug.log
-
-# =========================
 # OS / Editor junk
 # =========================
 .DS_Store
 Thumbs.db
-.idea/
 .vscode/
-*.swp
-*.swo
+.idea/
 
 # =========================
-# Build / Cache / Temp
+# Environment variables
 # =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Logs
+# =========================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# =========================
+# Node / General
+# =========================
+node_modules/
 coverage/
-*.lcov
+
+# =========================
+# Frontend (Vite / React)
+# =========================
+client/node_modules/
+client/dist/
+client/.vite/
+
+# =========================
+# Backend
+# =========================
+server/node_modules/
+
+# =========================
+# Build / Runtime artifacts
+# =========================
+dist/
+build/
+
+# =========================
+# Database / Temp
+# =========================
+*.sqlite
+*.db
 tmp/
 temp/
-.cache/
 
 # =========================
-# Sequelize / Database
+# Misc
 # =========================
-sequelize-meta.json
-*.sqlite
-*.sqlite3
-*.db
-*.db-journal
-dump/
-
-# =========================
-# Uploads (if added later)
-# =========================
-uploads/
+*.swp
+*.swo
