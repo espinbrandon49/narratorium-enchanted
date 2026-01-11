@@ -178,3 +178,65 @@ This document defines the final architecture, sequencing, and non-negotiable gat
 - Quill = typing only
 - Tailwind-only styling
 - Living window (10,000 words)
+
+```
+server/
+  package.json
+  .env.example
+
+  app.js                      // express app composition (middleware, sessions, routes, error handler)
+  server.js                   // http server + socket.io init + attachSockets + listen
+
+  config/
+    connection.js             // sequelize connection (env-driven)
+    sessionStore.js           // connect-session-sequelize store config (optional)
+    cors.js                   // (optional) only if needed; monolith often avoids this
+
+  models/
+    index.js                  // init + associations (single source of truth)
+    User.js
+    Story.js
+    Submission.js
+
+  db/
+    seed.js                   // optional (dev/demo seed)
+    migrations/               // optional if you choose migrations
+    schema/                   // optional SQL notes (if you keep any)
+
+  routes/
+    index.js                  // mounts /api routes
+    auth.routes.js            // /api/auth/*
+    story.routes.js           // optional: REST story endpoints (if any)
+
+  controllers/
+    auth.controller.js        // signup/login/logout/me (JSON-only)
+    story.controller.js       // optional: REST endpoints (snapshot/resync, etc.)
+
+  middleware/
+    requireAuth.js            // REST guard (session-derived)
+    validate.js               // request validation helpers (optional)
+    errorHandler.js           // one error handler (REST)
+    notFound.js               // 404 JSON responder
+
+  sockets/
+    index.js                  // attachSockets(io)
+    story.socket.js           // story events: join/patch/resync (no DB logic)
+    socketAuth.js             // session → socket user resolver (optional)
+
+  services/
+    story.service.js          // core domain: view window, insert, delete, reindex, limits
+    limits.service.js         // UTC midnight reset logic (optional split)
+    token.service.js          // tokenize/normalize (optional, can live in utils)
+
+  utils/
+    apiResponse.js            // { ok, data, error }
+    AppError.js               // error class + codes (optional)
+    dates.js                  // UTC midnight helpers
+    text.js                   // normalizeWhitespace + tokenizeWords
+    constants.js              // STORY_WINDOW_SIZE=10000, TOKEN_MAX=48, EVENT_MAX=200
+
+  public/
+    favicon.ico               // optional (or served from client build)
+
+  client-build/               // NOT in repo: build output served by express (dist) (ignore via .gitignore)
+```
