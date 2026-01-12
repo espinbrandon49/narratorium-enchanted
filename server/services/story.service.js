@@ -1,16 +1,52 @@
+// server/services/story.service.js
 const { Op } = require("sequelize");
 const sequelize = require("../config/connection");
 const { Submission, Token } = require("../models");
-const { TOKEN_MAX, EVENT_MAX } = require("../utils/constants");
+const {
+  STORY_WINDOW_SIZE,
+  TOKEN_MAX,
+  EVENT_MAX,
+} = require("../utils/constants");
 const AppError = require("../utils/AppError");
 
 /**
  * Normalize and split a submission event into tokens.
+ * - trims
+ * - collapses whitespace
+ * - splits on space
  * @param {string} text
  * @returns {string[]}
  */
 function tokenize(text) {
   return text.trim().replace(/\s+/g, " ").split(" ");
+}
+
+/**
+ * Escape hatch snapshot:
+ * Returns the authoritative story token window ordered by position.
+ *
+ * @param {Object} params
+ * @param {number} params.storyId
+ */
+async function getStoryWindow({ storyId }) {
+  if (!Number.isInteger(storyId) || storyId < 1) {
+    throw new AppError("INVALID_STORY_ID", "Invalid story id", 400);
+  }
+
+  const tokens = await Token.findAll({
+    where: { story_id: storyId },
+    order: [["position", "ASC"]],
+    limit: STORY_WINDOW_SIZE,
+  });
+
+  return {
+    storyId,
+    tokens: tokens.map((t) => ({
+      id: t.id,
+      value: t.value,
+      position: t.position,
+    })),
+  };
 }
 
 /**
@@ -31,28 +67,48 @@ function tokenize(text) {
  * @param {number} params.insertPosition
  */
 async function submitToStory({ storyId, userId, text, insertPosition }) {
-  if (typeof text !== "string" || text.length === 0) {
-    throw new AppError("INVALID_SUBMISSION", 400);
+  if (!Number.isInteger(storyId) || storyId < 1) {
+    throw new AppError("INVALID_STORY_ID", "Invalid story id", 400);
+  }
+
+  if (!Number.isInteger(userId) || userId < 1) {
+    throw new AppError("INVALID_USER", "Invalid user", 400);
+  }
+
+  if (typeof text !== "string" || text.trim().length === 0) {
+    throw new AppError("INVALID_SUBMISSION", "Submission text is required", 400);
   }
 
   if (text.length > EVENT_MAX) {
-    throw new AppError("SUBMISSION_TOO_LONG", 400);
+    throw new AppError(
+      "SUBMISSION_TOO_LONG",
+      `Submission must be ≤ ${EVENT_MAX} characters`,
+      400
+    );
   }
 
   if (!Number.isInteger(insertPosition) || insertPosition < 1) {
-    throw new AppError("INVALID_INSERT_POSITION", 400);
+    throw new AppError(
+      "INVALID_INSERT_POSITION",
+      "Insert position must be an integer ≥ 1",
+      400
+    );
   }
 
   const tokens = tokenize(text);
 
   for (const token of tokens) {
     if (token.length > TOKEN_MAX) {
-      throw new AppError("TOKEN_TOO_LONG", 400);
+      throw new AppError(
+        "TOKEN_TOO_LONG",
+        `Token exceeds ${TOKEN_MAX} characters`,
+        400
+      );
     }
   }
 
   return sequelize.transaction(async (t) => {
-    // 1) Log the submission event
+    // 1) Log the submission event (audit trail)
     const submission = await Submission.create(
       {
         submission: text,
@@ -88,10 +144,18 @@ async function submitToStory({ storyId, userId, text, insertPosition }) {
       validate: true,
     });
 
+    // This is the patch payload you can emit over sockets
     return {
+      type: "insert",
+      storyId,
       inserted: tokenRows.length,
       from: insertPosition,
       to: insertPosition + tokenRows.length - 1,
+      // include the actual inserted tokens for client patch application
+      tokens: tokenRows.map((tr) => ({
+        value: tr.value,
+        position: tr.position,
+      })),
     };
   });
 }
@@ -104,8 +168,12 @@ async function submitToStory({ storyId, userId, text, insertPosition }) {
  * @param {number} params.position
  */
 async function deleteToken({ storyId, position }) {
+  if (!Number.isInteger(storyId) || storyId < 1) {
+    throw new AppError("INVALID_STORY_ID", "Invalid story id", 400);
+  }
+
   if (!Number.isInteger(position) || position < 1) {
-    throw new AppError("INVALID_POSITION", 400);
+    throw new AppError("INVALID_POSITION", "Position must be ≥ 1", 400);
   }
 
   return sequelize.transaction(async (t) => {
@@ -115,7 +183,7 @@ async function deleteToken({ storyId, position }) {
     });
 
     if (!deleted) {
-      return { deleted: false };
+      return { type: "delete", storyId, deleted: false, position };
     }
 
     await Token.increment(
@@ -129,11 +197,12 @@ async function deleteToken({ storyId, position }) {
       }
     );
 
-    return { deleted: true };
+    return { type: "delete", storyId, deleted: true, position };
   });
 }
 
 module.exports = {
+  getStoryWindow,
   submitToStory,
   deleteToken,
 };

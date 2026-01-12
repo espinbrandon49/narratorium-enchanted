@@ -27,21 +27,21 @@ app.use(express.static(path.join(__dirname, "public")));
 // Sessions
 const store = createSessionStore();
 
-app.use(
-  session({
-    name: "sid",
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    store,
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: Number(process.env.SESSION_TTL_MS || 1000 * 60 * 60 * 24 * 7),
-    },
-  })
-);
+const sessionMiddleware = session({
+  name: "sid",
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  store,
+  cookie: {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: Number(process.env.SESSION_TTL_MS || 1000 * 60 * 60 * 24 * 7),
+  },
+});
+
+app.use(sessionMiddleware);
 
 // API
 app.use("/api", apiRoutes);
@@ -50,4 +50,4 @@ app.use("/api", apiRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-module.exports = { app, store };
+module.exports = { app, store, sessionMiddleware };

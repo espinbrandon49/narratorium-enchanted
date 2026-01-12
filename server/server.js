@@ -1,11 +1,10 @@
-// server/server.js
 require("dotenv").config();
 
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 
 const sequelize = require("./config/connection");
-const { app, store } = require("./app");
+const { app, store, sessionMiddleware } = require("./app");
 const attachSockets = require("./sockets");
 
 // Canonical model initialization (associations + definitions)
@@ -29,6 +28,11 @@ async function boot() {
 
     // Attach Socket.IO
     const io = new Server(httpServer);
+
+    // ✅ Bridge Express sessions into Socket.IO
+    // This makes socket.request.session available.
+    io.engine.use(sessionMiddleware);
+    io.use((socket, next) => sessionMiddleware(socket.request, {}, next));
 
     // Register socket handlers
     attachSockets(io);
