@@ -35,7 +35,7 @@ This document defines the final architecture, sequencing, and non-negotiable gat
 - Normalize timestamps strategy:
   - `timestamps: true` everywhere
   - keep `last_logged_in` as a domain field
-- Keep `Submission.position` as the ordering truth
+- Keep Token.position as the ordering truth (deterministic ordering is token-based)
 - Add DB constraints:
   - **UNIQUE (story_id, position)**
   - **position >= 1**
@@ -81,17 +81,84 @@ This document defines the final architecture, sequencing, and non-negotiable gat
 
 ## Frontend
 
-### Phase 5 — React Core Loop
-- Vite React app with routes `/`, `/login`, `/signup`
-- Axios layer (single entrypoint)
-- Socket layer (single entrypoint)
-- Quill:
-  - toolbar removed
-  - typing surface only
-  - plain text extraction
-- Client sends intent only; server decides
+# Phase 5 — React Core Loop (FREEZE TEXT)
 
-**Gate:** Core loop works end-to-end locally.
+## Paradigm (Option C): Server-defined default story
+- MVP supports **one default story** chosen by the server.
+- Story is **publicly readable** (unauthenticated users can view/resync and receive live updates).
+- Story is **editable only by authenticated users** (session-derived identity; server-enforced).
+- Client does **not** implement story selection, story creation, or multi-story routing.
+
+---
+
+## Scope (What Phase 5 builds)
+
+### Routes
+- Vite React app with:
+  - `/` (story view + input)
+  - `/login`
+  - `/signup`
+
+### Transport layers (single entrypoints)
+- **HTTP (Axios) single entrypoint**
+  - Used **only** for `/api/auth/*`
+  - No axios/fetch anywhere outside the HTTP client module
+- **Socket single entrypoint**
+  - Used **only** for story realtime
+  - No raw `socket.emit/on` outside the socket client module
+
+### Editor (Quill)
+- Quill is used as **typing surface only**
+  - Toolbar removed
+  - Plain text extraction only
+  - Client sends **intent** only (`submit_event` as plain text)
+
+### Realtime core loop (socket-first)
+- On `/` load:
+  - connect socket
+  - join **default story** (no client-provided storyId)
+  - resync snapshot
+- Writing:
+  - authenticated users can emit `story:patch` with `{ submit_event }`
+  - unauthenticated users cannot patch (UI disabled + server rejects)
+
+### Reliability (minimum L/E/E)
+- `/` has:
+  - loading state (initial connect/resync)
+  - empty state (no tokens yet)
+  - error state + retry (connect/resync failure)
+- submit has:
+  - disabled while sending
+  - clear error surfaced if rejected (401 / too long / etc.)
+
+---
+
+## Explicit MVP Anti-Goals (Forbidden in Phase 5)
+- ❌ No REST story/token endpoints (no `/api/story`, no `/api/token`)
+- ❌ No story controllers/routes added
+- ❌ No story list, selection UI, or `/story/:id` routing
+- ❌ No story creation
+- ❌ No second write path (sockets are the only write path)
+- ❌ No client authority over story existence (server decides default story)
+
+---
+
+## README “Project Soul” Note (Required)
+Add this sentence near the top of the README (or a short “Philosophy” section):
+
+> “This is an Etch-A-Sketch that never shakes back to its original state.”
+
+---
+
+## Gate (Phase 5)
+✅ **Gate:** Core loop works end-to-end locally:
+- A brand-new visitor can open `/` and **read** the default story (initial snapshot + live updates) without logging in.
+- An authenticated user can **write** by submitting plain-text `submit_event` and see updates propagate without refresh.
+- Axios usage is confined to the single auth client module.
+- Socket usage is confined to the single socket client module.
+- No story selection logic exists in the client, and no REST story endpoints exist on the server.
+
+**Phase 5 FREEZE condition:** Once the gate passes, tag/freeze and proceed to Phase 6 only if a new capability is required.
 
 ---
 
@@ -240,3 +307,50 @@ server/
 
   client-build/               // NOT in repo: build output served by express (dist) (ignore via .gitignore)
 ```
+
+**************FRONTEND*****************
+client/
+├─ package.json
+├─ vite.config.js
+├─ index.html
+└─ src/
+   ├─ main.jsx                # Vite entry
+   ├─ App.jsx                 # Router + AppShell only
+   │
+   ├─ app/
+   │  ├─ AppShell.jsx         # Layout, nav, auth status
+   │  └─ routes.jsx           # Route definitions ONLY
+   │
+   ├─ pages/
+   │  ├─ StoryPage.jsx        # "/" – core loop
+   │  ├─ LoginPage.jsx        # "/login"
+   │  └─ SignupPage.jsx       # "/signup"
+   │
+   ├─ realtime/
+   │  ├─ socket.js            # 🔒 SINGLE socket entrypoint
+   │  └─ story.js             # story-specific socket helpers
+   │
+   ├─ api/
+   │  ├─ http.js              # 🔒 SINGLE axios instance
+   │  └─ auth.js              # login/signup/logout/me
+   │
+   ├─ editor/
+   │  └─ QuillEditor.jsx      # typing surface only (no toolbar)
+   │
+   ├─ hooks/
+   │  ├─ useAuth.js           # auth state (REST-backed)
+   │  └─ useStory.js          # story state (socket-backed)
+   │
+   ├─ components/
+   │  ├─ StoryView.jsx        # renders tokens
+   │  ├─ SubmitBar.jsx        # submit intent UI
+   │  └─ LoadingState.jsx
+   │
+   ├─ state/
+   │  └─ storyReducer.js      # optional local reducer
+   │
+   ├─ styles/
+   │  └─ app.css
+   │
+   └─ utils/
+      └─ guards.js            # small invariants (optional)

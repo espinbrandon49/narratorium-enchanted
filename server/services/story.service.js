@@ -1,7 +1,6 @@
-// server/services/story.service.js
 const { Op } = require("sequelize");
 const sequelize = require("../config/connection");
-const { Submission, Token } = require("../models");
+const { Story, Submission, Token } = require("../models");
 const {
   STORY_WINDOW_SIZE,
   TOKEN_MAX,
@@ -9,13 +8,30 @@ const {
 } = require("../utils/constants");
 const AppError = require("../utils/AppError");
 
+// server-defined default story
+const DEFAULT_STORY_NAME = process.env.DEFAULT_STORY_NAME || "Default Story";
+
+// In-memory cache 
+let _defaultStoryId = null;
+
+/**
+ * Ensure the default story exists (no seed required).
+ * Returns the canonical story id.
+ */
+async function getDefaultStoryId() {
+  if (_defaultStoryId) return _defaultStoryId;
+
+  const [story] = await Story.findOrCreate({
+    where: { storyname: DEFAULT_STORY_NAME },
+    defaults: { storyname: DEFAULT_STORY_NAME },
+  });
+
+  _defaultStoryId = story.id;
+  return _defaultStoryId;
+}
+
 /**
  * Normalize and split a submission event into tokens.
- * - trims
- * - collapses whitespace
- * - splits on space
- * @param {string} text
- * @returns {string[]}
  */
 function tokenize(text) {
   return text.trim().replace(/\s+/g, " ").split(" ");
@@ -24,9 +40,6 @@ function tokenize(text) {
 /**
  * Escape hatch snapshot:
  * Returns the authoritative story token window ordered by position.
- *
- * @param {Object} params
- * @param {number} params.storyId
  */
 async function getStoryWindow({ storyId }) {
   if (!Number.isInteger(storyId) || storyId < 1) {
@@ -51,20 +64,6 @@ async function getStoryWindow({ storyId }) {
 
 /**
  * Handle a submission event and convert it into story tokens.
- *
- * Canonical flow:
- * - validate submission event (≤ 200 chars)
- * - tokenize into words
- * - validate tokens (≤ 48 chars)
- * - write Submission (event)
- * - shift Token positions
- * - insert Token rows (state)
- *
- * @param {Object} params
- * @param {number} params.storyId
- * @param {number} params.userId
- * @param {string} params.text
- * @param {number} params.insertPosition
  */
 async function submitToStory({ storyId, userId, text, insertPosition }) {
   if (!Number.isInteger(storyId) || storyId < 1) {
@@ -108,7 +107,6 @@ async function submitToStory({ storyId, userId, text, insertPosition }) {
   }
 
   return sequelize.transaction(async (t) => {
-    // 1) Log the submission event (audit trail)
     const submission = await Submission.create(
       {
         submission: text,
@@ -118,7 +116,6 @@ async function submitToStory({ storyId, userId, text, insertPosition }) {
       { transaction: t }
     );
 
-    // 2) Shift existing tokens to make room
     await Token.increment(
       { position: tokens.length },
       {
@@ -130,7 +127,6 @@ async function submitToStory({ storyId, userId, text, insertPosition }) {
       }
     );
 
-    // 3) Insert tokens as authoritative state
     const tokenRows = tokens.map((value, i) => ({
       value,
       position: insertPosition + i,
@@ -144,14 +140,12 @@ async function submitToStory({ storyId, userId, text, insertPosition }) {
       validate: true,
     });
 
-    // This is the patch payload you can emit over sockets
     return {
       type: "insert",
       storyId,
       inserted: tokenRows.length,
       from: insertPosition,
       to: insertPosition + tokenRows.length - 1,
-      // include the actual inserted tokens for client patch application
       tokens: tokenRows.map((tr) => ({
         value: tr.value,
         position: tr.position,
@@ -160,13 +154,6 @@ async function submitToStory({ storyId, userId, text, insertPosition }) {
   });
 }
 
-/**
- * Delete a token at a position and close the gap.
- *
- * @param {Object} params
- * @param {number} params.storyId
- * @param {number} params.position
- */
 async function deleteToken({ storyId, position }) {
   if (!Number.isInteger(storyId) || storyId < 1) {
     throw new AppError("INVALID_STORY_ID", "Invalid story id", 400);
@@ -202,6 +189,7 @@ async function deleteToken({ storyId, position }) {
 }
 
 module.exports = {
+  getDefaultStoryId,
   getStoryWindow,
   submitToStory,
   deleteToken,

@@ -1,4 +1,5 @@
 require("dotenv").config();
+const cors = require("cors");
 
 const path = require("path");
 const express = require("express");
@@ -16,6 +17,15 @@ const app = express();
 if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
+
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+
+app.use(
+  cors({
+    origin: CLIENT_ORIGIN,
+    credentials: true,
+  })
+);
 
 // Core middleware
 app.use(express.json());

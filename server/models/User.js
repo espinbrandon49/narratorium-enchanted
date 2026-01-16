@@ -16,11 +16,13 @@ User.init(
       primaryKey: true,
       autoIncrement: true,
     },
+
     username: {
       type: DataTypes.STRING,
       unique: true,
       allowNull: false,
     },
+
     email: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -29,6 +31,7 @@ User.init(
         isEmail: true,
       },
     },
+
     password: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -36,14 +39,27 @@ User.init(
         len: [8],
       },
     },
+
+    // Policy-ish columns (server-owned defaults; not client-authoritative)
     character_limit: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      defaultValue: 200,
+      validate: {
+        min: 1,
+      },
     },
+
     delete_limit: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      defaultValue: 0,
+      validate: {
+        min: 0,
+      },
     },
+
+    // Domain field (not a Sequelize timestamp)
     last_logged_in: {
       type: DataTypes.DATE,
     },

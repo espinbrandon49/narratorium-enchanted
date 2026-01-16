@@ -27,7 +27,14 @@ async function boot() {
     const httpServer = createServer(app);
 
     // Attach Socket.IO
-    const io = new Server(httpServer);
+    const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+
+    const io = new Server(httpServer, {
+      cors: {
+        origin: CLIENT_ORIGIN,
+        credentials: true,
+      },
+    });
 
     // ✅ Bridge Express sessions into Socket.IO
     // This makes socket.request.session available.
