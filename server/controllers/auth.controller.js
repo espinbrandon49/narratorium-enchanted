@@ -13,11 +13,15 @@ exports.signup = async (req, res, next) => {
             );
         }
 
-        // IMPORTANT: whitelist identity fields only (policy defaults are server-owned)
         const user = await User.create({ username, email, password });
 
         req.session.userId = user.id;
-        ok(res, { id: user.id });
+
+        ok(res, {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+        });
     } catch (err) {
         next(err);
     }
@@ -33,7 +37,12 @@ exports.login = async (req, res, next) => {
         }
 
         req.session.userId = user.id;
-        ok(res, { id: user.id });
+
+        ok(res, {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+        });
     } catch (err) {
         next(err);
     }
@@ -43,6 +52,18 @@ exports.logout = (req, res) => {
     req.session.destroy(() => ok(res));
 };
 
-exports.me = (req, res) => {
-    ok(res, req.session.userId ? { id: req.session.userId } : null);
+exports.me = async (req, res, next) => {
+    try {
+        if (!req.session.userId) {
+            return ok(res, null);
+        }
+
+        const user = await User.findByPk(req.session.userId, {
+            attributes: ["id", "username", "email"],
+        });
+
+        ok(res, user);
+    } catch (err) {
+        next(err);
+    }
 };

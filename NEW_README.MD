@@ -19,6 +19,8 @@ collaboration happens in real time, but history is preserved
 
 The result is a living narrative shaped by many voices, constrained by scarcity rather than overwrite.
 
+Narratorium accepts contributions only during shared moments in time. Scarcity is created by presence, not restriction.
+
 Core Philosophy
 
 One shared story
@@ -132,3 +134,36 @@ single shared story
 append-only contributions
 
 Future ideas (moderation roles, enhanced tooling) are conceptual only and not part of the current build.
+
+The Opening — Philosophical Description
+
+The Opening is not permission.
+It is presence.
+
+Narratorium does not ask who may speak so much as when the story is listening.
+Auth establishes identity; The Opening establishes attention.
+
+When The Opening is open, voices gather in time.
+When it is closed, the story rests—not in rejection, but in silence.
+
+Scarcity here is not punishment or control.
+It is care.
+
+By limiting when contributions may occur—rather than how many or by whom—Narratorium protects meaning without policing behavior. Each line is small, permanent, and intentional. Accumulation replaces overwrite. Memory replaces revision.
+
+The Opening creates a shared place in time:
+
+collaboration without coordination
+
+togetherness without chat
+
+urgency without competition
+
+It turns writing from a background activity into an event.
+
+Silence becomes part of the narrative.
+Waiting becomes a form of participation.
+Arrival matters.
+
+In Narratorium, the story does not belong to its contributors.
+It opens itself.
