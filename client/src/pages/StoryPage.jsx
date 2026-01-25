@@ -111,25 +111,40 @@ export default function StoryPage() {
       : "";
 
   return (
-    <div className="space-y-5">
+    // IMPORTANT:
+    // - min-h-0 is required so the inner scroll container can actually shrink and scroll
+    // - grid rows: story scroll area (1fr) + anchored submit (auto)
+    <div className="flex min-h-[70vh] flex-col gap-5">
       <OpeningCard opening={opening} />
 
-      {!story.tokens?.length ? (
-        <div className="rounded-2xl bg-white/55 p-6 ring-1 ring-slate-900/10">
-          <div className="text-slate-700">
-            Empty story. <span className="italic">Be the first to write.</span>
+      <div className="grid min-h-0 flex-1 grid-rows-[1fr_auto] gap-4">
+        {/* Story scroll region */}
+        <div className="min-h-0 overflow-y-auto pr-1">
+          {!story.tokens?.length ? (
+            <div className="rounded-2xl bg-white/55 p-6 ring-1 ring-slate-900/10">
+              <div className="text-slate-700">
+                Empty story.{" "}
+                <span className="italic">Be the first to write.</span>
+              </div>
+            </div>
+          ) : (
+            <StoryView tokens={story.tokens} />
+          )}
+        </div>
+
+        {/* Anchored "present" submit bar */}
+        <div className="sticky bottom-0 z-20">
+          <div className="pointer-events-none absolute -top-6 left-0 right-0 h-6 bg-gradient-to-t from-white/60 to-transparent" />
+          <div className="pointer-events-auto">
+            <SubmitBar
+              disabled={writeDisabled}
+              disabledReason={disabledReason}
+              semanticMessage={story.openingMessage}
+              onSubmit={(plain) => story.submit({ submit_event: plain })}
+            />
           </div>
         </div>
-      ) : (
-        <StoryView tokens={story.tokens} />
-      )}
-
-      <SubmitBar
-        disabled={writeDisabled}
-        disabledReason={disabledReason}
-        semanticMessage={story.openingMessage}
-        onSubmit={(plain) => story.submit({ submit_event: plain })}
-      />
+      </div>
     </div>
   );
 }

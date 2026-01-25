@@ -164,7 +164,7 @@ export function useStory() {
     setError("");
     setOpeningMessage("");
 
-    // Phase 8+: client sends intent only; server decides ordering + window boundary
+    // client sends intent only; server decides ordering + window boundary
     storyPatch({ submit_event });
   }, []);
 

@@ -25,8 +25,7 @@ export default function AppShell({ children }) {
               Narratorium
             </div>
             <div className="mt-1 max-w-xl text-sm italic text-slate-700">
-              “This is an Etch-A-Sketch that never shakes back to its original
-              state.”
+              “Narratorium is a fire that never goes out — it changes only by what is added to it, and it burns most brightly in the moments we are present together.”
             </div>
           </div>
 
