@@ -53,7 +53,7 @@ module.exports = function storySocket(io, socket) {
   });
 
   // Write path (auth required + Opening required)
-  socket.on("story:patch", async ({ submit_event, insertPosition } = {}) => {
+  socket.on("story:patch", async ({ submit_event } = {}) => {
     try {
       const userId = requireSocketAuth(socket);
 
@@ -68,7 +68,6 @@ module.exports = function storySocket(io, socket) {
         storyId,
         userId,
         text: submit_event,
-        insertPosition,
       });
 
       socket.emit("story:patch", patch);

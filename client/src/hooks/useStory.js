@@ -14,7 +14,8 @@ function reducer(state, action) {
       const patch = action.payload;
       if (patch.type !== "insert") return state;
 
-      const tokens = [...state.tokens];
+      let tokens = [...state.tokens];
+
       const insertIdx = Math.max(0, patch.from - 1);
 
       const inserted = patch.tokens.map((t) => ({
@@ -23,7 +24,7 @@ function reducer(state, action) {
         position: t.position,
       }));
 
-      // mirror server shift
+      // mirror server shift (legacy-safe; in Phase 8 append-only this won't move anything)
       for (let i = 0; i < tokens.length; i++) {
         if (tokens[i].position >= patch.from) {
           tokens[i] = {
@@ -35,6 +36,11 @@ function reducer(state, action) {
 
       tokens.splice(insertIdx, 0, ...inserted);
       tokens.sort((a, b) => a.position - b.position);
+
+      // ✅ Server-owned living window boundary: obey it (no client policy)
+      if (Number.isInteger(patch.windowStartPosition) && patch.windowStartPosition > 1) {
+        tokens = tokens.filter((t) => t.position >= patch.windowStartPosition);
+      }
 
       return { ...state, tokens };
     }
@@ -154,16 +160,13 @@ export function useStory() {
     };
   }, [socket]);
 
-  const submit = useCallback(
-    async ({ submit_event }) => {
-      setError("");
-      setOpeningMessage("");
+  const submit = useCallback(async ({ submit_event }) => {
+    setError("");
+    setOpeningMessage("");
 
-      const insertPosition = (state.tokens?.length || 0) + 1;
-      storyPatch({ submit_event, insertPosition });
-    },
-    [state.tokens]
-  );
+    // Phase 8+: client sends intent only; server decides ordering + window boundary
+    storyPatch({ submit_event });
+  }, []);
 
   return {
     storyId: state.storyId,
