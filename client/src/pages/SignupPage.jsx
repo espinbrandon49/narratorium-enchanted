@@ -95,7 +95,7 @@ export default function SignupPage() {
           </label>
 
           {/* wax-seal submit */}
-          <WaxSealButton disabled={saving}>
+          <WaxSealButton type="submit" disabled={saving}>
             {saving ? "Creating…" : "Sign up"}
           </WaxSealButton>
 

@@ -68,7 +68,7 @@ export default function LoginPage() {
           </label>
 
           {/* wax-seal submit */}
-          <WaxSealButton disabled={saving}>
+          <WaxSealButton type="submit" disabled={saving}>
             {saving ? "Signing in..." : "Login"}
           </WaxSealButton>
 
