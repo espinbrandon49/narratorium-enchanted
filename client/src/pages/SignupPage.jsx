@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
@@ -29,15 +29,15 @@ export default function SignupPage() {
   }
 
   return (
-    <div style={{ maxWidth: 520, margin: "0 auto", padding: "24px 16px" }}>
-      <h1 style={{ margin: 0, fontSize: 28, lineHeight: 1.2 }}>Create account</h1>
-      <p style={{ marginTop: 8, opacity: 0.85 }}>
+    <div className="card">
+      <h2>Create account</h2>
+      <p className="muted">
         Join the enchanted story. Anyone can read; only authenticated users can contribute.
       </p>
 
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, marginTop: 16 }}>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Username</span>
+      <form className="stack" onSubmit={onSubmit}>
+        <label>
+          <div className="muted small">Username</div>
           <input
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -46,8 +46,8 @@ export default function SignupPage() {
           />
         </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Email</span>
+        <label>
+          <div className="muted small">Email</div>
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -57,8 +57,8 @@ export default function SignupPage() {
           />
         </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Password</span>
+        <label>
+          <div className="muted small">Password</div>
           <input
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -66,20 +66,17 @@ export default function SignupPage() {
             autoComplete="new-password"
             required
           />
-          <small style={{ opacity: 0.75 }}>Minimum 8 characters.</small>
+          <div className="muted small">Minimum 8 characters.</div>
         </label>
 
-        {error ? (
-          <div style={{ padding: 10, borderRadius: 8, border: "1px solid #f3b6b6" }}>{error}</div>
-        ) : null}
-
-        <button type="submit" disabled={saving}>
+        <button className="btn" disabled={saving}>
           {saving ? "Creating…" : "Sign up"}
         </button>
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "center", opacity: 0.85 }}>
-          <span>Already have an account?</span>
-          <Link to="/login">Log in</Link>
+        {error ? <div className="error">{error}</div> : null}
+
+        <div className="muted small">
+          Already have an account? <Link to="/login">Log in</Link>
         </div>
       </form>
     </div>

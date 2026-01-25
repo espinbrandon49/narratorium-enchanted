@@ -167,3 +167,5 @@ Arrival matters.
 
 In Narratorium, the story does not belong to its contributors.
 It opens itself.
+
+The Opening is not permission — it is presence. Narratorium does not ask who may speak so much as when the story is listening: authentication establishes identity, and The Opening establishes attention. Twice each day, at fixed times anchored to midnight in UTC+01:00, the story opens for a short window and accepts new lines; outside that window, the story rests. This scarcity is not punishment or control, but care — it protects meaning without policing behavior, turning contribution into an event instead of background noise. When closed, the story remains fully readable, and the client simply renders the server’s world-state (“The story is resting…”) and the next opening time; when open, authenticated users may submit, a

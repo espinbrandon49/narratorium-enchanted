@@ -1,4 +1,11 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 import * as auth from "../api/auth";
 
 const AuthContext = createContext(null);
@@ -8,16 +15,16 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
+    // Silent session check: do not surface errors if user is simply logged out
     const refresh = useCallback(async () => {
         setLoading(true);
-        setError("");
         try {
             const res = await auth.me();
             if (res.ok) setUser(res.data);
             else setUser(null);
         } catch (e) {
             setUser(null);
-            setError("Auth check failed.");
+            // intentionally silent
         } finally {
             setLoading(false);
         }

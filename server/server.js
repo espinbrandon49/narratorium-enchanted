@@ -1,57 +1,86 @@
 require("dotenv").config();
 
-const { createServer } = require("http");
+const http = require("http");
+const { app, sessionMiddleware } = require("./app");
 const { Server } = require("socket.io");
 
-const sequelize = require("./config/connection");
-const { app, store, sessionMiddleware } = require("./app");
 const attachSockets = require("./sockets");
+const storyService = require("./services/story.service");
+const { getOpeningState } = require("./utils/opening");
 
-// Canonical model initialization (associations + definitions)
-require("./models");
-
-const PORT = Number(process.env.PORT || 3001);
+const PORT = process.env.PORT || 4000;
 
 async function boot() {
-  try {
-    // Verify DB connection
-    await sequelize.authenticate();
+  const server = http.createServer(app);
 
-    // Sync application tables
-    await sequelize.sync();
+  const io = new Server(server, {
+    cors: {
+      origin: process.env.CLIENT_ORIGIN || true,
+      credentials: true,
+    },
+  });
 
-    // Sync session store table
-    await store.sync();
+  // ✅ Critical: make Express sessions available on socket.request.session
+  io.use((socket, next) => sessionMiddleware(socket.request, {}, next));
 
-    // Create HTTP server
-    const httpServer = createServer(app);
+  // Attach all socket namespaces / handlers
+  attachSockets(io);
 
-    // Attach Socket.IO
-    const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
+  /**
+   * -------------------------------------------------------
+   * The Opening — Boundary Broadcast (server-authoritative)
+   * -------------------------------------------------------
+   * Emits `story:opening`:
+   * - once on boot
+   * - at every open/close boundary
+   *
+   * No DB state.
+   * No overrides.
+   * Pure deterministic time math.
+   */
+  (async function startOpeningBroadcast() {
+    try {
+      const storyId = await storyService.getDefaultStoryId();
+      const room = `story:${storyId}`;
 
-    const io = new Server(httpServer, {
-      cors: {
-        origin: CLIENT_ORIGIN,
-        credentials: true,
-      },
-    });
+      const scheduleNext = () => {
+        const opening = getOpeningState();
 
-    // ✅ Bridge Express sessions into Socket.IO
-    // This makes socket.request.session available.
-    io.engine.use(sessionMiddleware);
-    io.use((socket, next) => sessionMiddleware(socket.request, {}, next));
+        const nowMs = Date.now();
+        const closesAtMs = Date.parse(opening.closesAt);
+        const nextOpenAtMs = Date.parse(opening.nextOpenAt);
 
-    // Register socket handlers
-    attachSockets(io);
+        // If currently open → next boundary is close
+        // If closed → next boundary is open
+        const nextBoundaryMs = opening.isOpen ? closesAtMs : nextOpenAtMs;
 
-    // Start listening
-    httpServer.listen(PORT, () => {
-      console.log(`✅ Server listening on port ${PORT}`);
-    });
-  } catch (err) {
-    console.error("❌ Server failed to start:", err);
-    process.exit(1);
-  }
+        // Guard against negative or zero delays
+        const delayMs = Math.max(250, nextBoundaryMs - nowMs + 50);
+
+        setTimeout(() => {
+          const fresh = getOpeningState();
+          io.to(room).emit("story:opening", { opening: fresh });
+          scheduleNext();
+        }, delayMs);
+      };
+
+      // emit once on boot
+      io.to(room).emit("story:opening", { opening: getOpeningState() });
+
+      // schedule boundary emissions
+      scheduleNext();
+    } catch (e) {
+      // swallow—Opening broadcast should never crash boot
+      console.error("Opening broadcast failed:", e);
+    }
+  })();
+
+  server.listen(PORT, () => {
+    console.log(`Server listening on http://localhost:${PORT}`);
+  });
 }
 
-boot();
+boot().catch((e) => {
+  console.error("Fatal boot error:", e);
+  process.exit(1);
+});

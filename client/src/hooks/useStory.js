@@ -3,119 +3,179 @@ import { getSocket } from "../realtime/socket";
 import { storyConnect, storyJoin, storyResync, storyPatch } from "../realtime/story";
 
 function reducer(state, action) {
-    switch (action.type) {
-        case "RESET":
-            return { storyId: action.payload.storyId, tokens: action.payload.tokens };
-        case "APPLY_PATCH": {
-            const patch = action.payload;
-            if (patch.type !== "insert") return state;
+  switch (action.type) {
+    case "RESET":
+      return {
+        storyId: action.payload.storyId,
+        tokens: action.payload.tokens,
+      };
 
-            // naive patch apply: insert by position
-            const tokens = [...state.tokens];
-            const insertIdx = Math.max(0, patch.from - 1);
-            const inserted = patch.tokens.map((t) => ({
-                id: `local-${t.position}-${t.value}`,
-                value: t.value,
-                position: t.position,
-            }));
+    case "APPLY_PATCH": {
+      const patch = action.payload;
+      if (patch.type !== "insert") return state;
 
-            // shift existing positions >= from by inserted count (client-side mirror)
-            for (let i = 0; i < tokens.length; i++) {
-                if (tokens[i].position >= patch.from) tokens[i] = { ...tokens[i], position: tokens[i].position + inserted.length };
-            }
+      const tokens = [...state.tokens];
+      const insertIdx = Math.max(0, patch.from - 1);
 
-            tokens.splice(insertIdx, 0, ...inserted);
+      const inserted = patch.tokens.map((t) => ({
+        id: `local-${t.position}-${t.value}`,
+        value: t.value,
+        position: t.position,
+      }));
 
-            // keep ordered by position
-            tokens.sort((a, b) => a.position - b.position);
-
-            return { ...state, tokens };
+      // mirror server shift
+      for (let i = 0; i < tokens.length; i++) {
+        if (tokens[i].position >= patch.from) {
+          tokens[i] = {
+            ...tokens[i],
+            position: tokens[i].position + inserted.length,
+          };
         }
-        default:
-            return state;
+      }
+
+      tokens.splice(insertIdx, 0, ...inserted);
+      tokens.sort((a, b) => a.position - b.position);
+
+      return { ...state, tokens };
     }
+
+    default:
+      return state;
+  }
 }
 
 export function useStory() {
-    const [state, dispatch] = useReducer(reducer, { storyId: null, tokens: [] });
+  const [state, dispatch] = useReducer(reducer, {
+    storyId: null,
+    tokens: [],
+  });
 
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    const socket = useMemo(() => getSocket(), []);
+  // Opening world-state (server-owned)
+  const [opening, setOpening] = useState(null);
+  const [openingMessage, setOpeningMessage] = useState("");
 
-    const retry = useCallback(() => {
-        setError("");
-        setLoading(true);
-        try {
-            storyConnect();
-            storyJoin();
-            storyResync();
-        } catch (e) {
-            setError("Socket connect failed.");
-            setLoading(false);
-        }
-    }, []);
+  const socket = useMemo(() => getSocket(), []);
 
-    useEffect(() => {
-        // connect + wire listeners once
-        storyConnect();
+  const retry = useCallback(() => {
+    setError("");
+    setLoading(true);
+    storyConnect();
+    storyJoin();
+    storyResync();
+  }, []);
 
-        const onConnect = () => {
-            setConnected(true);
-            setError("");
-            storyJoin();
-            storyResync();
-        };
+  useEffect(() => {
+    storyConnect();
 
-        const onDisconnect = () => setConnected(false);
-
-        const onResync = (snapshot) => {
-            dispatch({ type: "RESET", payload: snapshot });
-            setLoading(false);
-        };
-
-        const onPatch = (patch) => {
-            dispatch({ type: "APPLY_PATCH", payload: patch });
-        };
-
-        const onStoryError = (payload) => {
-            setError(payload?.message || "Story error.");
-            setLoading(false);
-        };
-
-        socket.on("connect", onConnect);
-        socket.on("disconnect", onDisconnect);
-        socket.on("story:resync", onResync);
-        socket.on("story:patch", onPatch);
-        socket.on("story:error", onStoryError);
-
-        // if already connected (hot reload)
-        if (socket.connected) onConnect();
-
-        return () => {
-            socket.off("connect", onConnect);
-            socket.off("disconnect", onDisconnect);
-            socket.off("story:resync", onResync);
-            socket.off("story:patch", onPatch);
-            socket.off("story:error", onStoryError);
-        };
-    }, [socket]);
-
-    const submit = useCallback(async ({ submit_event }) => {
-        setError("");
-        const insertPosition = (state.tokens?.length || 0) + 1;
-        storyPatch({ submit_event, insertPosition });
-    }, [state.tokens]);
-
-    return {
-        storyId: state.storyId,
-        tokens: state.tokens,
-        loading,
-        error,
-        connected,
-        retry,
-        submit,
+    const onConnect = () => {
+      setError("");
+      storyJoin();
+      storyResync();
     };
+
+    const onDisconnect = () => {
+      // no-op; UI can show disconnected status if desired
+    };
+
+    const onResync = (snapshot) => {
+      dispatch({ type: "RESET", payload: snapshot });
+
+      // Opening may be embedded in resync payload
+      if (snapshot?.opening) {
+        setOpening(snapshot.opening);
+        if (snapshot.opening?.isOpen) setOpeningMessage("");
+      }
+
+      setLoading(false);
+    };
+
+    const onPatch = (patch) => {
+      dispatch({ type: "APPLY_PATCH", payload: patch });
+    };
+
+    const onStoryState = (payload) => {
+      // Initial join state
+      if (payload?.opening) {
+        setOpening(payload.opening);
+        if (payload.opening?.isOpen) setOpeningMessage("");
+      }
+    };
+
+    // ✅ Live boundary flip (no refresh)
+    const onOpening = (payload) => {
+      const next = payload?.opening || payload;
+      if (!next) return;
+
+      setOpening(next);
+      if (next?.isOpen) setOpeningMessage("");
+    };
+
+    const onStoryError = (payload) => {
+      // Semantic handling for Opening
+      if (payload?.code === "OPENING_CLOSED") {
+        setOpeningMessage(payload.message || "The story is resting.");
+
+        if (payload.details) {
+          setOpening(payload.details);
+        }
+
+        // converge back to server truth
+        storyResync();
+        return;
+      }
+
+      // generic error path
+      setError(payload?.message || "Story error.");
+      setLoading(false);
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("story:state", onStoryState);
+    socket.on("story:opening", onOpening);
+    socket.on("story:resync", onResync);
+    socket.on("story:patch", onPatch);
+    socket.on("story:error", onStoryError);
+
+    // hot reload safety
+    if (socket.connected) onConnect();
+
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("story:state", onStoryState);
+      socket.off("story:opening", onOpening);
+      socket.off("story:resync", onResync);
+      socket.off("story:patch", onPatch);
+      socket.off("story:error", onStoryError);
+    };
+  }, [socket]);
+
+  const submit = useCallback(
+    async ({ submit_event }) => {
+      setError("");
+      setOpeningMessage("");
+
+      const insertPosition = (state.tokens?.length || 0) + 1;
+      storyPatch({ submit_event, insertPosition });
+    },
+    [state.tokens]
+  );
+
+  return {
+    storyId: state.storyId,
+    tokens: state.tokens,
+
+    loading,
+    error,
+    retry,
+
+    opening,
+    openingMessage,
+
+    submit,
+  };
 }
