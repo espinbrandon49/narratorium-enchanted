@@ -40,10 +40,16 @@ function OpeningCard({ opening }) {
 
   if (opening.isOpen) {
     return (
-      <div className="card border border-emerald-400/30 bg-emerald-500/5 ring-1 ring-emerald-400/20">
-        <div className="muted">The Opening is live.</div>
-        <div className="small muted">
-          Closes at {formatAbsolute(opening.closesAt)}.
+      <div className="rounded-2xl bg-emerald-500/10 p-5 ring-1 ring-emerald-700/20">
+        <div className="font-['Cinzel'] text-sm tracking-wide text-slate-900">
+          The Opening is live.
+        </div>
+        <div className="mt-1 text-sm text-slate-700">
+          Closes at{" "}
+          <span className="font-medium text-slate-900">
+            {formatAbsolute(opening.closesAt)}
+          </span>
+          .
         </div>
       </div>
     );
@@ -51,10 +57,15 @@ function OpeningCard({ opening }) {
 
   const hint = formatRelativeHint(opening.nextOpenAt);
   return (
-    <div className="card border border-slate-400/20 bg-slate-500/5">
-      <div className="muted">The story is resting.</div>
-      <div className="small muted">
-        Next Opening: {formatAbsolute(opening.nextOpenAt)}
+    <div className="rounded-2xl bg-slate-500/10 p-5 ring-1 ring-slate-900/10">
+      <div className="font-['Cinzel'] text-sm tracking-wide text-slate-900">
+        The story is resting.
+      </div>
+      <div className="mt-1 text-sm text-slate-700">
+        Next Opening:{" "}
+        <span className="font-medium">
+          {formatAbsolute(opening.nextOpenAt)}
+        </span>
         {hint ? ` (${hint})` : ""}
       </div>
     </div>
@@ -65,13 +76,25 @@ export default function StoryPage() {
   const auth = useAuth();
   const story = useStory();
 
-  if (story.loading) return <LoadingState label="Connecting + syncing story..." />;
+  if (story.loading)
+    return <LoadingState label="Connecting + syncing story..." />;
 
   if (story.error) {
     return (
-      <div className="card">
-        <div className="error">Error: {story.error}</div>
-        <button className="btn" onClick={story.retry}>Retry</button>
+      <div className="rounded-2xl bg-white/60 p-6 ring-1 ring-slate-900/10">
+        <div className="text-sm text-red-900">Error: {story.error}</div>
+        <button
+          className="
+            mt-4 rounded-full bg-red-800 px-5 py-3
+            font-['Cinzel'] text-xs tracking-wide text-amber-50
+            shadow-[0_14px_40px_rgba(127,29,29,0.35)]
+            ring-1 ring-red-950/30
+            transition hover:-translate-y-[1px] hover:bg-red-700 active:translate-y-0
+          "
+          onClick={story.retry}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -88,12 +111,14 @@ export default function StoryPage() {
       : "";
 
   return (
-    <div className="stack">
+    <div className="space-y-5">
       <OpeningCard opening={opening} />
 
       {!story.tokens?.length ? (
-        <div className="card">
-          <div className="muted">Empty story. Be the first to write.</div>
+        <div className="rounded-2xl bg-white/55 p-6 ring-1 ring-slate-900/10">
+          <div className="text-slate-700">
+            Empty story. <span className="italic">Be the first to write.</span>
+          </div>
         </div>
       ) : (
         <StoryView tokens={story.tokens} />
