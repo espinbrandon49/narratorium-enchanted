@@ -4,6 +4,7 @@ const http = require("http");
 const { app, sessionMiddleware } = require("./app");
 const { Server } = require("socket.io");
 
+const sequelize = require("./config/connection"); // ✅ ADD: ensures tables exist in fresh JawsDB
 const attachSockets = require("./sockets");
 const storyService = require("./services/story.service");
 const { getOpeningState } = require("./utils/opening");
@@ -11,6 +12,9 @@ const { getOpeningState } = require("./utils/opening");
 const PORT = process.env.PORT || 4000;
 
 async function boot() {
+  // ✅ CRITICAL: create tables in a fresh prod DB (JawsDB) before any queries run
+  await sequelize.sync();
+
   const server = http.createServer(app);
 
   const io = new Server(server, {
