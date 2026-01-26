@@ -193,12 +193,17 @@ Add this sentence near the top of the README (or a short “Philosophy” sectio
 
 ## Performance Identity
 
-### Phase 8 — Living Window Soft Cap
-- DB stores all submissions
-- Render/send only the most recent **10,000 words**
-- No historical browsing required
+Phase 8 — Living Window Soft Cap (Token-Based)
 
-**Gate:** Performance remains stable as stories grow.
+DB stores all submissions + tokens (full history preserved server-side)
+
+Client renders/receives only the most recent STORY_WINDOW_SIZE tokens (default: 10,000)
+
+“Most recent” is defined by highest Token.position
+
+No historical browsing in MVP (older tokens never sent to client)
+
+Gate: Realtime + resync payload stays bounded; performance remains stable as stories grow.
 
 ---
 

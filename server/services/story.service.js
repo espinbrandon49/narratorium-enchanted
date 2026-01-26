@@ -46,8 +46,23 @@ async function getStoryWindow({ storyId }) {
     throw new AppError("INVALID_STORY_ID", "Invalid story id", 400);
   }
 
-  const tokens = await Token.findAll({
+  // Soft-cap: return ONLY the most recent window (deterministic, bounded payload).
+  // NOTE: "most recent" is defined by highest Token.position.
+  const maxPosition = await Token.max("position", {
     where: { story_id: storyId },
+  });
+
+  if (!maxPosition) {
+    return { storyId, tokens: [] };
+  }
+
+  const startPosition = Math.max(1, maxPosition - STORY_WINDOW_SIZE + 1);
+
+  const tokens = await Token.findAll({
+    where: {
+      story_id: storyId,
+      position: { [Op.gte]: startPosition },
+    },
     order: [["position", "ASC"]],
     limit: STORY_WINDOW_SIZE,
   });
