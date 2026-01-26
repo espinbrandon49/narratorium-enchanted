@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useStory } from "../hooks/useStory";
 import LoadingState from "../components/LoadingState";
@@ -72,6 +73,48 @@ function OpeningCard({ opening }) {
   );
 }
 
+function AuthCtaBar() {
+  return (
+    <div className="mb-3 rounded-2xl bg-white/55 p-4 ring-1 ring-slate-900/10">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-slate-800">
+          <span className="font-medium text-slate-900">
+            Login required to write.
+          </span>{" "}
+          Join the moment:
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            to="/login"
+            className="
+              rounded-full bg-slate-900 px-4 py-2
+              font-['Cinzel'] text-xs tracking-wide text-amber-50
+              shadow-[0_12px_30px_rgba(15,23,42,0.25)]
+              ring-1 ring-slate-950/30
+              transition hover:-translate-y-[1px] hover:bg-slate-800 active:translate-y-0
+            "
+          >
+            Login
+          </Link>
+
+          <Link
+            to="/signup"
+            className="
+              rounded-full bg-white/70 px-4 py-2
+              font-['Cinzel'] text-xs tracking-wide text-slate-900
+              ring-1 ring-slate-900/15
+              transition hover:-translate-y-[1px] hover:bg-white/85 active:translate-y-0
+            "
+          >
+            Signup
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StoryPage() {
   const auth = useAuth();
   const story = useStory();
@@ -104,16 +147,11 @@ export default function StoryPage() {
 
   const writeDisabled = !auth.isAuthed || !isOpen;
 
-  const disabledReason = !auth.isAuthed
-    ? "Login required to write."
-    : !isOpen
-      ? "The story is resting."
-      : "";
+  // Keep SubmitBar's disabledReason focused on story-state.
+  // Auth CTA is handled by StoryPage so user can act without scrolling.
+  const disabledReason = !isOpen ? "The story is resting." : "";
 
   return (
-    // IMPORTANT:
-    // - min-h-0 is required so the inner scroll container can actually shrink and scroll
-    // - grid rows: story scroll area (1fr) + anchored submit (auto)
     <div className="flex min-h-[70vh] flex-col gap-5">
       <OpeningCard opening={opening} />
 
@@ -123,8 +161,7 @@ export default function StoryPage() {
           {!story.tokens?.length ? (
             <div className="rounded-2xl bg-white/55 p-6 ring-1 ring-slate-900/10">
               <div className="text-slate-700">
-                Empty story.{" "}
-                <span className="italic">Be the first to write.</span>
+                Empty story. <span className="italic">Be the first to write.</span>
               </div>
             </div>
           ) : (
@@ -132,10 +169,13 @@ export default function StoryPage() {
           )}
         </div>
 
-        {/* Anchored "present" submit bar */}
+        {/* Anchored "present" zone */}
         <div className="sticky bottom-0 z-20">
           <div className="pointer-events-none absolute -top-6 left-0 right-0 h-6 bg-gradient-to-t from-white/60 to-transparent" />
+
           <div className="pointer-events-auto">
+            {!auth.isAuthed ? <AuthCtaBar /> : null}
+
             <SubmitBar
               disabled={writeDisabled}
               disabledReason={disabledReason}
