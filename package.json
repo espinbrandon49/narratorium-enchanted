@@ -1,0 +1,14 @@
+{
+  "name": "narratorium",
+  "private": true,
+  "workspaces": ["server", "client"],
+  "scripts": {
+    "start": "npm --workspace server start",
+    "dev": "npm --workspace server dev",
+    "build": "npm --workspace client run build",
+    "heroku-postbuild": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

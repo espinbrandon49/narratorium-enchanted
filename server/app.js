@@ -20,6 +20,9 @@ if (process.env.NODE_ENV === "production") {
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || "http://localhost:5173";
 
+// ✅ Monolith: where the React build lives (repo-root/client/dist)
+const CLIENT_DIST_PATH = path.join(__dirname, "..", "client", "dist");
+
 app.use(
   cors({
     origin: CLIENT_ORIGIN,
@@ -55,6 +58,24 @@ app.use(sessionMiddleware);
 
 // API
 app.use("/api", apiRoutes);
+
+// ✅ Serve React build in production (Heroku monolith)
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(CLIENT_DIST_PATH));
+
+  // SPA fallback (must come after static)
+  app.get("*", (req, res) => {
+    // Let API routes remain JSON-only
+    if (req.path.startsWith("/api")) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: "NOT_FOUND", message: "Route not found" },
+      });
+    }
+
+    return res.sendFile(path.join(CLIENT_DIST_PATH, "index.html"));
+  });
+}
 
 // 404 + error handler (single)
 app.use(notFound);
